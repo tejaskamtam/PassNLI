@@ -24,8 +24,8 @@ def parse_args():
 
     parser.add_argument('--model', '-m', type=str, default="gpt", choices=['gpt', 'claude'], help="Model to use.")
     parser.add_argument('--version', '-v', type=str, default='gpt-3.5-turbo', choices=['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'haiku', 'sonnet', 'opus'], help="Version of the model to use.")
-    parser.add_argument('--save-history', '-s', nargs='?', default="None", const='history.jsonl', help="APPEND chat completion to a file. Default to 'history.jsonl'.")
-    parser.add_argument('--load-history', '-l', type=str, default=None, help='.jsonl file to load history as json objects from')
+    parser.add_argument('--save-history', '-s', nargs='?', default=None, const='history.jsonl', help="APPEND chat completion to a file. Default to 'history.jsonl'.")
+    parser.add_argument('--load-history', '-l', nargs='?',  default=None, const='history.jsonl', help='.jsonl file to load history as json objects from')
     parser.add_argument('--temperature', '-t', type=float, default=1, help='Sampling temperature (default 1)')
     parser.add_argument('--top-k', '-k', type=int, default=1, help='Top-k sampling.')
     parser.add_argument('--prompt', '-p', required=True, type=str, help='Prompt for the chat')
@@ -53,7 +53,7 @@ def chat(args, client, content, history=None):
         messages = [{ 'role': 'system', 'content': args.system_prompt }] if args.system_prompt else []
         messages += history if history else []
         messages.append({ 'role': 'user', 'content': content })
-        # print("MESSAGES:",messages)
+        # print("MESSAGES:","%r" % messages)
         completion = client.chat.completions.create(
             model=args.version,
             temperature=args.temperature,
@@ -91,7 +91,8 @@ if __name__ == '__main__':
 
     if args.load_history:
         with open(args.load_history, 'r') as f:
-            history = f.readlines() 
+            # read raw lines without escaping
+            history = [json.loads(line) for line in f]
     # print("PROMPT: ", args.prompt)
 
     ## RAW COMPLETION(s)
@@ -112,10 +113,11 @@ if __name__ == '__main__':
 
     if args.save_history:
         with open(args.save_history, 'a+') as f:
+            f.write(json.dumps({'role':'user', 'content':str(args.prompt)}) + '\n')
             if args.model == 'gpt':
-                f.write(json.dumps(completions.choices[0].model_dump()["message"]) + '\n')
+                f.write(json.dumps({'role':'assistant', 'content':str(completions.choices[0].model_dump()["message"]["content"])}) + '\n')
             elif args.model == 'claude':
-                f.write(json.dumps({'role':'asistant', 'content':completions.content[0].text}) + '\n')
+                f.write(json.dumps({'role':'assistant', 'content':completions.content[0].text}) + '\n')
             else:
                 raise ValueError("Invalid model type. Choose 'gpt' or 'claude'.")
     sys.exit(0)
