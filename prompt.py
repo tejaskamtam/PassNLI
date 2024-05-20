@@ -16,7 +16,8 @@ class HiddenPrints:
             sys.stdout.close()
             sys.stdout = self._original_stdout
 
-
+# TODO: Add few-shot prompts here
+FEW_SHOT_PROMPTS = ["hello", "world"]
 
 
 def parse_args():
@@ -31,7 +32,10 @@ def parse_args():
     parser.add_argument('--prompt', '-p', required=True, type=str, help='Prompt for the chat')
     parser.add_argument('--system-prompt', '-sys', type=str, default=None, help='System prompt for the chat')
     parser.add_argument('--max-tokens', '-max', type=int, default=150, help='Maximum tokens to generate')
-    parser.add_argument('--mute', action='store_true', help='Mute the output')
+    parser.add_argument('--mute', action='store_true', help='Mute all prints')
+    parser.add_argument('--quiet', action='store_true', help='Mute the auxillary prints but still output the completions')
+    parser.add_argument('--few-shot', type=int, default=0, help='Use few-shot completions, enter # of samples to use in context, default 0 (zero-shot)')
+    parser.add_argument('--cot', action='store_true', help='Use chain-of-thought completions')
 
     args = parser.parse_args()
   
@@ -93,12 +97,21 @@ if __name__ == '__main__':
         with open(args.load_history, 'r') as f:
             # read raw lines without escaping
             history = [json.loads(line) for line in f]
-    # print("PROMPT: ", args.prompt)
+    prompt = args.prompt
+    if args.few_shot:
+        prompt = "Here are few examples:\n" + "\n".join(FEW_SHOT_PROMPTS[:args.few_shot]) + "\n" + prompt
 
+    if args.cot:
+        prompt += "\nLet's think this through step-by-step:"
+    else:
+        prompt += "\nOutput only the final answer, please."
+    
+    with HiddenPrints(args.mute or args.quiet):
+        print("PROMPT: ", prompt)
     ## RAW COMPLETION(s)
-    completions = chat(args, client, args.prompt, history)
+    completions = chat(args, client, prompt, history)
 
-    with HiddenPrints(args.mute):
+    with HiddenPrints(args.mute or args.quiet):
         print("RAW COMPLETION:",completions)
     
     if args.model == 'gpt':
