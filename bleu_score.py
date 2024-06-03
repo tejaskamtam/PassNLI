@@ -10,22 +10,21 @@ def custom_tokenizer(input_string):
 
 
 # Pass in a list of lists of tuples, where each tuple is of the form ([top_k_pred], reference)
-def compute_bleu_score(instance_list, use_custom_tokenizer=False):
+def compute_bleu_score(references, predictions, use_custom_tokenizer=False):
     # Generate prediction_list and reference_list
+    reference_list = []  # list of lists of strings
     prediction_list = []  # list of strings (each string is a prediction)
-    reference_list = (
-        []
-    )  # list of lists of strings (each list of strings is a list of references)
 
-    for instance in instance_list:
-        (top_k_pred, reference) = instance
+    for i in range(len(references)):
+        reference = references[i]
+        top_k_pred = predictions[i]
         k_val = len(top_k_pred)
 
         prediction_list += top_k_pred
         reference_list += [[reference] for _ in range(k_val)]
 
     # Load BLEU evaluation metric
-    bleu = evaluate.load("bleu")
+    bleu = load("bleu")
 
     # Default tokenizer is minimalistic. Custom tokenizer breaks string into chars
     results = None
